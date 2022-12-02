@@ -7,10 +7,7 @@ import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
 
-# For post processing
-# import pickle 
-from yolo_seq_conversion import *
-from yolo_repp_conversion import *
+from seq_nms_counting import *
 
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
@@ -75,7 +72,6 @@ def detect(save_img=False):
     seq_conf = []
     seq_coords = []
     seq_labels = []
-    preds_video = {}
 
     t0 = time.time()
     for path, img, im0s, vid_cap in dataset:
@@ -108,30 +104,7 @@ def detect(save_img=False):
         if classify:
             pred = apply_classifier(pred, modelc, img, im0s)
 
-        
-        # FOR Post Processing
-        post_process = True
-        if post_process:
-            pred_frame = []
-            frame_id = getattr(dataset, 'frame', 0)
-            for i, det in enumerate(pred):  # detections per image
-                for *xyxy, conf, cls in reversed(det):
-
-                    label = names[int(cls)]
-                    x_min, y_min, x_max, y_max = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])                    
-                    width, height = x_max - x_min, y_max - y_min
-                    if width <= 0 or height <= 0: continue
-                    bbox_center = [(x_min  + width/2), (y_min + height/2)]
-                    
-                    # Initialize predictions
-                    pred_box = { 'image_id': frame_id, 'bbox': [ x_min, y_min, width, height ], 'bbox_center': bbox_center }
-                    pred_box['score'] = float(conf)
-                    pred_box['category_id']: int(cls)
-                    pred_frame.append(pred_box)
-
-            preds_video[frame_id] = pred_frame
-
-        # FOR seq-nms
+        # FOR custom seq-nms and object counting
         seq_nms = True
         if seq_nms:
             frame_boxes = []
@@ -227,30 +200,14 @@ def detect(save_img=False):
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
-    # pickle_output = "../pickle.pckl"
-    # if post_process:
-    #     file_writer = open(pickle_output, 'wb')
-        
-    #     pickle.dump(("Video", preds_video), file_writer)
-    #     # print(preds_video)
-    numpy_boxes, numpy_scores, numpy_labels = convert_seqence_to_padded_numpy(seq_conf, seq_coords, seq_labels)
-
-    
+    # Custom object counting using ideas similar to sequential nms
     if seq_nms:
+        numpy_boxes, numpy_scores, numpy_labels = convert_seqence_to_padded_numpy(seq_conf, seq_coords, seq_labels)  
         post_process_time = time.time()
         numpy_boxes, numpy_scores, numpy_labels, num_objects, total_obj_count, frame_obj_count = perform_seq_nms(numpy_boxes, numpy_scores, numpy_labels)
         post_process_time = time.time() - post_process_time
         annotate_video(source, imgsz, stride, numpy_boxes, numpy_scores, numpy_labels, names, device, save_path, total_obj_count=total_obj_count, frame_obj_count=frame_obj_count)
 
-
-    # repp = True
-    # if repp:
-    #     # Create the necessary data for REPP to run
-    #     # perform_repp(numpy_boxes, numpy_scores, numpy_labels)
-        
-    #     # If the above step was already run
-    #     numpy_boxes, numpy_scores, numpy_labels = coco_to_numpy("./video_1_repp_coco.json")
-    #     annotate_video(source, imgsz, stride, numpy_boxes, numpy_scores, numpy_labels, names, device, save_path, ext="-repp.")
 
     print("\n\n")
     print("Number of objects detected", num_objects)
