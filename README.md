@@ -1,5 +1,7 @@
 # Official YOLOv7
-This repository is a fork of an implementation of the following paper - [YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/abs/2207.02696) 
+This repository is a fork of an implementation of the following paper - [YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/abs/2207.02696) . This repository also has an implementation of an algorithm that was inspired by [Sequential Non Max Suppression](https://arxiv.org/abs/1602.08465). The new algorithm calculates collates single objects across frames using bounding box overlap to create sequences that enable counting. 
+
+The main files enabling this new algorithm are seq_nms_counting.py and some changes to detect.py
 
 # Goals
 This repository introduces a new algorithm for identifying and keeping track of objects across multiple frames. 
@@ -9,7 +11,7 @@ This repository introduces a new algorithm for identifying and keeping track of 
 * Produce a video output that has less visual flickering associated with the YOLO outputs
 
 # YOLOv7 and SEQ-NMS for object counting
-This repository is a fork of YOLOv7, with an implementation of an algorithm that was inspired by [Sequential Non Max Suppression](https://arxiv.org/abs/1602.08465). The new algorithm calculates collates single objects across frames using bounding box overlap to create sequences that enable counting. 
+
 
 ## What is YOLO?
 You only look once (YOLO) is a state-of-the-art, real-time object detection system, that works on individual frames of videos. This enables real time object detection, at the cost of sacrificing information that could be shared between frames such as object permanence. 
