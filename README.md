@@ -11,7 +11,15 @@ This repository introduces a new algorithm for identifying and keeping track of 
 * Produce a video output that has less visual flickering associated with the YOLO outputs
 
 # YOLOv7 and SEQ-NMS for object counting
+## See it in Action
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/g9BFUpx_tk0/0.jpg)](https://www.youtube.com/watch?v=g9BFUpx_tk0)
 
+## Screenshot
+<div align="center">
+    <a href="./">
+        <img src="./figure/screenshot.png" width="79%"/>
+    </a>
+</div>
 
 ## What is YOLO?
 You only look once (YOLO) is a state-of-the-art, real-time object detection system, that works on individual frames of videos. This enables real time object detection, at the cost of sacrificing information that could be shared between frames such as object permanence. 
@@ -34,9 +42,6 @@ An illustration of the algorithm can be seen below.
     </a>
 </div>
 
-## See it in Action
-[Youtube](https://www.youtube.com/watch?v=g9BFUpx_tk0)
-
 ## Benefits over rudimentary approach for object counting
 A rudimentary approach would assume that each time the total number of boxes output from YOLOv7 increases, that an object has come into the frame and we should increment the total count of objects. Conversely, when the number decreases an object has left the frame. This becomes an issue because the outputs of YOLOv7 are not very steady, meaning often objects are identified in most frames but not all. Consider the following sequence of frames. Which results in 5 cows, when 3 should be identified. With many frames and many cows, these effects are amplified and the count of cows can become insensibly high.
 
@@ -45,6 +50,3 @@ A rudimentary approach would assume that each time the total number of boxes out
         <img src="./figure/rudimentary_counting.png" width="79%"/>
     </a>
 </div>
-
-
-

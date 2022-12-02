@@ -1,6 +1,7 @@
 from operator import itemgetter
 import torch
 import cv2 
+import random
 from seq_nms import seq_nms
 from utils.datasets import LoadImages
 from pathlib import Path
@@ -35,6 +36,11 @@ def annotate_video(source, imgsz, stride, boxes, scores, labels, names, device, 
     i = 0
     vid_path = None
 
+    colors = []
+    if total_obj_count:
+        num_objects = max(total_obj_count)
+        colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(num_objects)]
+
     for path, img, im0s, vid_cap in dataset:
         print("\tannotating frame", i)
         img = torch.from_numpy(img).to(device)
@@ -44,11 +50,15 @@ def annotate_video(source, imgsz, stride, boxes, scores, labels, names, device, 
             img = img.unsqueeze(0)
 
         boxes[i] = scale_coords(img.shape[2:], boxes[i], im0s.shape).round()
-        for box, score, label in zip(boxes[i], scores[i], labels[i]):
+        for seq_idx, (box, score, label) in enumerate(zip(boxes[i], scores[i], labels[i])):
             # print(label)
             # print(names)
             label_text = f'{names[int(label)]} {score:.2f}'
-            plot_one_box(box, im0s, color=[255, 191, 0], label=label_text, line_thickness=3)
+            if total_obj_count:
+                label_text = f'{names[int(label)]} {seq_idx} {score:.2f}'
+                plot_one_box(box, im0s, color=colors[seq_idx], label=label_text, line_thickness=3)
+            else:
+                plot_one_box(box, im0s, color=[255, 191, 0], label=label_text, line_thickness=3)
         # cv2.imshow(str(Path(path)), im0s)
         # cv2.waitKey(1000)  # 1 millisecond
         if(total_obj_count and frame_obj_count):
