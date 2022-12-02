@@ -7,6 +7,11 @@ import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
 
+# For post processing
+# import pickle 
+from yolo_seq_conversion import *
+from yolo_repp_conversion import *
+
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
@@ -66,6 +71,12 @@ def detect(save_img=False):
     old_img_w = old_img_h = imgsz
     old_img_b = 1
 
+    # SEQ-NMS Setup
+    seq_conf = []
+    seq_coords = []
+    seq_labels = []
+    preds_video = {}
+
     t0 = time.time()
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
@@ -90,11 +101,57 @@ def detect(save_img=False):
 
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+
         t3 = time_synchronized()
 
         # Apply Classifier
         if classify:
             pred = apply_classifier(pred, modelc, img, im0s)
+
+        
+        # FOR Post Processing
+        post_process = True
+        if post_process:
+            pred_frame = []
+            frame_id = getattr(dataset, 'frame', 0)
+            for i, det in enumerate(pred):  # detections per image
+                for *xyxy, conf, cls in reversed(det):
+
+                    label = names[int(cls)]
+                    x_min, y_min, x_max, y_max = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])                    
+                    width, height = x_max - x_min, y_max - y_min
+                    if width <= 0 or height <= 0: continue
+                    bbox_center = [(x_min  + width/2), (y_min + height/2)]
+                    
+                    # Initialize predictions
+                    pred_box = { 'image_id': frame_id, 'bbox': [ x_min, y_min, width, height ], 'bbox_center': bbox_center }
+                    pred_box['score'] = float(conf)
+                    pred_box['category_id']: int(cls)
+                    pred_frame.append(pred_box)
+
+            preds_video[frame_id] = pred_frame
+
+        # FOR seq-nms
+        seq_nms = True
+        if seq_nms:
+            frame_boxes = []
+            frame_coords = []
+            frame_labels = []
+
+            frame_id = getattr(dataset, 'frame', 0)
+            for i, det in enumerate(pred):  # detections per image
+                for *xyxy, conf, cls in reversed(det):
+
+                    label = names[int(cls)]
+                    x_min, y_min, x_max, y_max = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])                    
+
+                    frame_coords.append((torch.tensor([x_min, y_min, x_max, y_max])))
+                    frame_boxes.append(float(conf))
+                    frame_labels.append(int(cls))
+
+            seq_conf.append(frame_boxes)
+            seq_coords.append(frame_coords)
+            seq_labels.append(frame_labels)
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -105,10 +162,18 @@ def detect(save_img=False):
 
             p = Path(p)  # to Path
             save_path = str(save_dir / p.name)  # img.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+            
+            # Old text path
+            # txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+            txt_path = str(save_dir / 'labels' / p.stem) # Save everything in the same file
+
+
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             if len(det):
                 # Rescale boxes from img_size to im0 size
+                # print("DET")
+                # print(det[:, :4])
+                # return
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
@@ -126,7 +191,9 @@ def detect(save_img=False):
 
                     if save_img or view_img:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
-                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                        # plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
+                        # color = [B, G, R]
+                        plot_one_box(xyxy, im0, label=label, color=[255, 191, 0], line_thickness=3)
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * (t2 - t1)):.1f}ms) Inference, ({(1E3 * (t3 - t2)):.1f}ms) NMS')
@@ -160,7 +227,36 @@ def detect(save_img=False):
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
 
+    # pickle_output = "../pickle.pckl"
+    # if post_process:
+    #     file_writer = open(pickle_output, 'wb')
+        
+    #     pickle.dump(("Video", preds_video), file_writer)
+    #     # print(preds_video)
+    numpy_boxes, numpy_scores, numpy_labels = convert_seqence_to_padded_numpy(seq_conf, seq_coords, seq_labels)
+
+    
+    if seq_nms:
+        post_process_time = time.time()
+        numpy_boxes, numpy_scores, numpy_labels, num_objects, total_obj_count, frame_obj_count = perform_seq_nms(numpy_boxes, numpy_scores, numpy_labels)
+        post_process_time = time.time() - post_process_time
+        annotate_video(source, imgsz, stride, numpy_boxes, numpy_scores, numpy_labels, names, device, save_path, total_obj_count=total_obj_count, frame_obj_count=frame_obj_count)
+
+
+    # repp = True
+    # if repp:
+    #     # Create the necessary data for REPP to run
+    #     # perform_repp(numpy_boxes, numpy_scores, numpy_labels)
+        
+    #     # If the above step was already run
+    #     numpy_boxes, numpy_scores, numpy_labels = coco_to_numpy("./video_1_repp_coco.json")
+    #     annotate_video(source, imgsz, stride, numpy_boxes, numpy_scores, numpy_labels, names, device, save_path, ext="-repp.")
+
+    print("\n\n")
+    print("Number of objects detected", num_objects)
+    print(f'Took ({post_process_time:.3f}s) for post processing')
     print(f'Done. ({time.time() - t0:.3f}s)')
+
 
 
 if __name__ == '__main__':
