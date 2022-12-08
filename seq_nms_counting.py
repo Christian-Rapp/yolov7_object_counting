@@ -2,7 +2,6 @@ from operator import itemgetter
 import torch
 import cv2 
 import random
-from seq_nms import seq_nms
 from utils.datasets import LoadImages
 from pathlib import Path
 import numpy as np
