@@ -1,5 +1,5 @@
 # Official YOLOv7
-This repository is a fork of an implementation of the following paper - [YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/abs/2207.02696) . This repository also has an implementation of an algorithm that was inspired by [Sequential Non Max Suppression](https://arxiv.org/abs/1602.08465). The new algorithm calculates collates single objects across frames using bounding box overlap to create sequences that enable counting. 
+This repository is a fork of an implementation of the following paper - [YOLOv7: Trainable bag-of-freebies sets new state-of-the-art for real-time object detectors](https://arxiv.org/abs/2207.02696) . This repository also has an implementation of an algorithm that was inspired by [Sequential Non Max Suppression](https://arxiv.org/abs/1602.08465). And the code for calculating overlaps was taken from [this](https://github.com/tmoopenn/seq-nms) implementation of SEQ-NMS. The new algorithm calculates collates single objects across frames using bounding box overlap to create sequences that enable counting. 
 
 The main files enabling this new algorithm are seq_nms_counting.py and some changes to detect.py
 
