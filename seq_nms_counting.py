@@ -280,7 +280,10 @@ def remove_false_positive_sequences(sequences, scores, short_length_threshold=2,
 
     return new_sequences
 
-def generate_missing_frames(sequences: list[set], missing_frames_sequences: list[set], boxes, scores, window_size=5):
+# Commenting this out because it doesnt play nicely with python3.8 and below
+# def generate_missing_frames(sequences: list[set], missing_frames_sequences: list[set], boxes, scores, window_size=5):
+
+def generate_missing_frames(sequences: list, missing_frames_sequences: list, boxes, scores, window_size=5):
     boxes_for_sequences = []
     for sqx, (sequence, missing_frames) in enumerate(zip(sequences, missing_frames_sequences)):
         sequence = sorted(list(sequence), key=itemgetter(0))
